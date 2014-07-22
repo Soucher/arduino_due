@@ -1,0 +1,159 @@
+// w5100 FTP passive client
+// IDE v1.0 only
+
+#include <SPI.h>
+#include <Ethernet.h>
+
+// Set to your network settings
+byte mac[] = { 0x90, 0xA2, 0xDA, 0x00, 0x59, 0x67 };  
+IPAddress ip( 192, 168, 192, 168 );    
+IPAddress gateway( 192, 168, 192, 1 );
+IPAddress subnet( 255, 255, 255, 0 );
+
+// Change this to the ip of the ftp server
+IPAddress server( 91, 227, 16, 11 );
+
+EthernetClient client;
+EthernetClient dclient;
+
+char outBuf[128];
+char outCount;
+
+void setup()
+{
+  Serial.begin(9600);
+  pinMode(4,OUTPUT);
+  digitalWrite(4,HIGH);
+  Ethernet.begin(mac, ip, gateway, gateway, subnet); 
+  delay(2000);
+  Serial.println("Ready. Press f");
+}
+
+void loop()
+{
+  byte inChar;
+
+  inChar = Serial.read();
+
+  if(inChar == 'f')
+  {
+    if(sendFTP()) Serial.println("FTP OK");
+    else Serial.println("FTP failed");
+  }
+}
+
+byte sendFTP()
+{
+  if (client.connect(server,21)) {
+    Serial.println("Command connected");
+  } 
+  else {
+    Serial.println("Connamd connection failed");
+    return 0;
+  }
+
+  if(!eRcv()) return 0;
+
+// Change to your user and password  
+  client.write("USER h65627_arduino\r\n");
+
+  if(!eRcv()) return 0;
+
+  client.write("PASS arduino\r\n");
+
+  if(!eRcv()) return 0;
+
+  client.write("SYST\r\n");
+
+  if(!eRcv()) return 0;
+
+  client.write("PASV\r\n");
+
+  if(!eRcv()) return 0;
+
+  char rtnVal[32];
+  
+  sscanf(outBuf,"%*s %*s %*s %*s %s",rtnVal);
+
+  unsigned int hiPort,loPort;
+
+  sscanf(rtnVal,"%*c%*d%*c%*d%*c%*d%*c%*d%*c%d%*c%d",&hiPort,&loPort);
+  
+  Serial.print("Port ");
+  hiPort = hiPort << 8;
+  loPort = loPort & 255;
+  hiPort = hiPort | loPort;
+  Serial.println(hiPort);
+  
+
+  if (dclient.connect(server,hiPort)) {
+    Serial.println("Data connected");
+  } 
+  else {
+    Serial.println("Data connection failed");
+    client.stop();
+    return 0;
+  }
+
+  client.write("QUIT\r\n");
+
+  if(!eRcv()) return 0;
+
+  dclient.stop();
+  client.stop();
+  Serial.println("disconnected");
+  return 1;
+}
+
+byte eRcv()
+{
+  byte respCode;
+  byte thisByte;
+
+  while(!client.available()) delay(1);
+
+  respCode = client.peek();
+
+  outCount = 0;
+  
+  while(client.available())
+  {  
+    thisByte = client.read();    
+    Serial.write(thisByte);
+
+    if(outCount < 127)
+    {
+      outBuf[outCount] = thisByte;
+      outCount++;      
+      outBuf[outCount] = 0;
+    }
+  }
+
+  if(respCode >= '4')
+  {
+    efail();
+    return 0;  
+  }
+
+  return 1;
+}
+
+
+void efail()
+{
+  byte thisByte = 0;
+
+  client.write("QUIT\r\n");
+
+  while(!client.available()) delay(1);
+
+  while(client.available())
+  {  
+    thisByte = client.read();    
+    Serial.write(thisByte);
+  }
+
+  client.stop();
+  dclient.stop();
+  Serial.println("disconnected");
+}

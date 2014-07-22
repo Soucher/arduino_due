@@ -10,15 +10,18 @@
 #define FTPWRITE
 
 // this must be unique
-byte mac[] = { 0x90, 0xA2, 0xDA, 0x00, 0x59, 0x67 };  
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
 // change to your network settings
-IPAddress ip( 192, 168, 2, 2 );    
-IPAddress gateway( 192, 168, 2, 1 );
-IPAddress subnet( 255, 255, 255, 0 );
+byte ip[] = { 192, 168, 192, 167 };  
+byte gateway[] = { 192, 168, 192, 1 };  
+byte subnet[] = { 255, 255, 255, 0 };  
+byte server[] = { 91, 227, 16, 11 };
+//IPAddress gateway( 192, 168, 192, 1 );
+//IPAddress subnet( 255, 255, 255, 0 );
 
 // change to your server
-IPAddress server( 1, 2, 3, 4 );
+//IPAddress server( 91, 227, 16, 11 );
 
 EthernetClient client;
 EthernetClient dclient;
@@ -32,7 +35,7 @@ char fileName[13] = "test.txt";
 void setup()
 {
   Serial.begin(9600);
-
+Serial.print("Initializing SD card...");
   pinMode(10,OUTPUT);
   digitalWrite(10,HIGH);
 
@@ -40,8 +43,10 @@ void setup()
   {
     Serial.println(F("SD init fail"));          
   }
-
-  Ethernet.begin(mac, ip, gateway, gateway, subnet); 
+  Serial.println("initialization done.");
+//Ethernet.begin(mac, ip);
+ Ethernet.begin(mac, ip, gateway, subnet, server);
+ 
   digitalWrite(10,HIGH);
   delay(2000);
   Serial.println(F("Ready. Press f or r"));
@@ -105,11 +110,11 @@ byte doFTP()
 
   if(!eRcv()) return 0;
 
-  client.println(F("USER myuser"));
+  client.println(F("USER h65627_arduino"));
 
   if(!eRcv()) return 0;
 
-  client.println(F("PASS mypassword"));
+  client.println(F("PASS arduino"));
 
   if(!eRcv()) return 0;
 
